@@ -1,6 +1,11 @@
 package go_localcache
 
-import "sync"
+import (
+	"fmt"
+	"log"
+	"runtime/debug"
+	"sync"
+)
 
 const (
 	copyThreshold = 1000
@@ -93,4 +98,14 @@ func (m *SafeMap) Size() int {
 	size := len(m.dirtyOld) + len(m.dirtyNew)
 	m.lock.RUnlock()
 	return size
+}
+
+func GoSave(fn func()) {
+	defer func() {
+		if p := recover(); p != nil {
+			log.Printf("[ERROR]: %s", fmt.Sprintf("%s\n%s", p, string(debug.Stack())))
+		}
+	}()
+
+	fn()
 }
