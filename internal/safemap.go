@@ -1,9 +1,6 @@
-package go_localcache
+package internal
 
 import (
-	"fmt"
-	"log"
-	"runtime/debug"
 	"sync"
 )
 
@@ -98,14 +95,4 @@ func (m *SafeMap) Size() int {
 	size := len(m.dirtyOld) + len(m.dirtyNew)
 	m.lock.RUnlock()
 	return size
-}
-
-func GoSave(fn func()) {
-	defer func() {
-		if p := recover(); p != nil {
-			log.Printf("[ERROR]: %s", fmt.Sprintf("%s\n%s", p, string(debug.Stack())))
-		}
-	}()
-
-	fn()
 }

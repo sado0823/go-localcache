@@ -1,4 +1,4 @@
-package go_localcache
+package internal
 
 import (
 	"container/list"
@@ -13,7 +13,7 @@ type (
 
 	TimingWheel struct {
 		interval  time.Duration
-		ticker    *time.Ticker
+		ticker    Ticker
 		slots     []*list.List
 		timers    *SafeMap
 		tickedPos int
@@ -51,14 +51,14 @@ type (
 )
 
 func NewTimingWheel(interval time.Duration, numSlots int, execute Execute) (*TimingWheel, error) {
-	if interval < 0 || numSlots < 0 || execute == nil {
+	if interval <= 0 || numSlots <= 0 || execute == nil {
 		return nil, fmt.Errorf("invalid param, interval: %v, numSlots: %d, execute: %p", interval, numSlots, execute)
 	}
 
-	return newTimingWheel(interval, numSlots, execute, time.NewTicker(interval))
+	return newTimingWheel(interval, numSlots, execute, NewTicker(interval))
 }
 
-func newTimingWheel(interval time.Duration, numSlots int, execute Execute, ticker *time.Ticker) (*TimingWheel, error) {
+func newTimingWheel(interval time.Duration, numSlots int, execute Execute, ticker Ticker) (*TimingWheel, error) {
 	tw := &TimingWheel{
 		interval:  interval,
 		ticker:    ticker,
@@ -128,7 +128,7 @@ func (tw TimingWheel) Stop() {
 }
 
 func (tw *TimingWheel) initSlots() {
-	for i, _ := range tw.slots {
+	for i := range tw.slots {
 		tw.slots[i] = list.New()
 	}
 }
@@ -137,7 +137,7 @@ func (tw *TimingWheel) initSlots() {
 func (tw *TimingWheel) run() {
 	for {
 		select {
-		case <-tw.ticker.C:
+		case <-tw.ticker.Chan():
 			tw.onTick()
 		case task := <-tw.setChan:
 			tw.setTask(&task)
