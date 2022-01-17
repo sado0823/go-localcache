@@ -3,6 +3,7 @@ package go_localcache
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -171,4 +172,71 @@ func Test_WithLruEvicts(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "bar4", get)
 
+}
+
+func Test_WithLruEvicted(t *testing.T) {
+	cache, err := New(time.Second*3, WithLimit(3))
+	assert.Nil(t, err)
+
+	var (
+		ctx = context.Background()
+	)
+
+	cache.Set(ctx, "foo1", "bar1")
+	cache.Set(ctx, "foo2", "bar2")
+	cache.Set(ctx, "foo3", "bar3")
+	cache.Set(ctx, "foo4", "bar4")
+
+	get, ok := cache.Get(ctx, "foo1")
+	assert.Nil(t, get)
+	assert.False(t, ok)
+
+	get, ok = cache.Get(ctx, "foo2")
+	assert.Equal(t, "bar2", get)
+	assert.True(t, ok)
+
+	cache.Set(ctx, "foo5", "bar5")
+	cache.Set(ctx, "foo6", "bar6")
+
+	get, ok = cache.Get(ctx, "foo3")
+	assert.Nil(t, get)
+	assert.False(t, ok)
+
+	get, ok = cache.Get(ctx, "foo4")
+	assert.Nil(t, get)
+	assert.False(t, ok)
+
+	get, ok = cache.Get(ctx, "foo2")
+	assert.Equal(t, "bar2", get)
+	assert.True(t, ok)
+}
+
+func Benchmark_Cache(b *testing.B) {
+	cache, err := New(time.Second*5, WithLimit(100000))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	for i := 0; i < 10000; i++ {
+		for j := 0; j < 10; j++ {
+			index := strconv.Itoa(i*10000 + j)
+			cache.Set(ctx, "key:"+index, "value:"+index)
+		}
+	}
+
+	time.Sleep(time.Second * 5)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for i := 0; i < b.N; i++ {
+				index := strconv.Itoa(i % 10000)
+				cache.Get(ctx, "key:"+index)
+				if i%100 == 0 {
+					cache.Set(ctx, "key1:"+index, "value1:"+index)
+				}
+			}
+		}
+	})
 }
